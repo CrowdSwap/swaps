@@ -1,0 +1,50 @@
+# compiled output
+/client
+/node_modules
+*/**/node_modules
+package-lock.json
+yarn.lock
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+
+# Tests
+/coverage
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+
+node_modules
+
+#Hardhat files
+cache
+cache-zk
+artifacts
+artifacts-zk
+deployments
+./.openzeppelin/unknown-31337.json
+successful_*
+unknownState*
