@@ -113,7 +113,7 @@ contract CrowdSwapV3 is
         PausableUpgradeable.__Pausable_init();
         setFeeTo(_feeTo);
         addDexchangesList(_dexAddresses);
-        setAffiliateFeePercentage(0, _defaultFeePercentage, true);
+        _setAffiliateFeePercentage(0, _defaultFeePercentage, true);
     }
 
     function pause() external onlyOwner {
@@ -332,20 +332,12 @@ contract CrowdSwapV3 is
         uint32 _affiliateCode,
         uint256 _feePercentage,
         bool _affiliateCodeDefined
-    ) external onlyOwner whenPaused {
-        // 1e18 is 1%
-        require(
-            MIN_FEE <= _feePercentage && _feePercentage <= MAX_FEE,
-            "CrowdSwapV3: feePercentage is not in the range"
-        );
-
-        emit setAffiliateFeePercent(
+    ) public onlyOwner whenPaused {
+        _setAffiliateFeePercentage(
             _affiliateCode,
-            _affiliateFeePercentage[_affiliateCode],
-            _feePercentage
+            _feePercentage,
+            _affiliateCodeDefined
         );
-        _affiliateFeePercentage[_affiliateCode] = _feePercentage;
-        _isAffiliateCodeDefined[_affiliateCode] = _affiliateCodeDefined;
     }
 
     function addDexchangesList(
@@ -417,6 +409,26 @@ contract CrowdSwapV3 is
             _balanceAfter - _balanceBefore == _amountOut,
             "CrowdSwapV3: tokenOut has not transferred to receiver"
         );
+    }
+
+    function _setAffiliateFeePercentage(
+        uint32 _affiliateCode,
+        uint256 _feePercentage,
+        bool _affiliateCodeDefined
+    ) private {
+        // 1e18 is 1%
+        require(
+            MIN_FEE <= _feePercentage && _feePercentage <= MAX_FEE,
+            "CrowdSwapV3: feePercentage is not in the range"
+        );
+
+        emit setAffiliateFeePercent(
+            _affiliateCode,
+            _affiliateFeePercentage[_affiliateCode],
+            _feePercentage
+        );
+        _affiliateFeePercentage[_affiliateCode] = _feePercentage;
+        _isAffiliateCodeDefined[_affiliateCode] = _affiliateCodeDefined;
     }
 
     function _feePercentageCalculator(
