@@ -322,7 +322,7 @@ contract CrowdSwapV3 is
         uint32 _affiliateCode,
         uint256 _feePercentage,
         bool _affiliateCodeDefined
-    ) external onlyOwner {
+    ) external onlyOwner whenPaused {
         emit setAffiliateFeePercent(
             _affiliateCode,
             _affiliateFeePercentage[_affiliateCode],
