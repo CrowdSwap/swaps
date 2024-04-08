@@ -61,7 +61,8 @@ contract CrowdSwapV3 is
 
     mapping(uint256 => address) public dexchanges;
 
-    mapping(uint32 => uint256) public affiliateFeePercentage;
+    mapping(uint32 => uint256) private _affiliateFeePercentage;
+    mapping(uint32 => bool) private _isAffiliateCodeDefined;
     address public feeTo;
 
     event SetFeeTo(address oldFeeToAddress, address newFeeToAddress);
@@ -110,7 +111,7 @@ contract CrowdSwapV3 is
         PausableUpgradeable.__Pausable_init();
         setFeeTo(_feeTo);
         addDexchangesList(_dexAddresses);
-        affiliateFeePercentage[0] = uint256(_defaultFeePercentage);
+        _affiliateFeePercentage[0] = uint256(_defaultFeePercentage);
     }
 
     function pause() external onlyOwner {
@@ -319,14 +320,16 @@ contract CrowdSwapV3 is
 
     function setAffiliateFeePercentage(
         uint32 _affiliateCode,
-        uint256 _feePercentage
+        uint256 _feePercentage,
+        bool _affiliateCodeDefined
     ) external onlyOwner {
         emit setAffiliateFeePercent(
             _affiliateCode,
-            affiliateFeePercentage[_affiliateCode],
+            _affiliateFeePercentage[_affiliateCode],
             _feePercentage
         );
-        affiliateFeePercentage[_affiliateCode] = uint256(_feePercentage);
+        _affiliateFeePercentage[_affiliateCode] = _feePercentage;
+        _isAffiliateCodeDefined[_affiliateCode] = _affiliateCodeDefined;
     }
 
     function addDexchangesList(
@@ -404,7 +407,7 @@ contract CrowdSwapV3 is
         uint256 _calculationAmount,
         uint32 _affiliateCode
     ) private view returns (uint256) {
-        uint256 _percentage = affiliateFeePercentage[_affiliateCode];
+        uint256 _percentage = _affiliateFeePercentage[_affiliateCode];
         return (_percentage * _calculationAmount) / (1e20);
     }
 
@@ -414,6 +417,10 @@ contract CrowdSwapV3 is
         uint256 _amount,
         uint32 _affiliateCode
     ) private returns (uint256, uint256) {
+        if (!_isAffiliateCodeDefined[_affiliateCode]) {
+            _affiliateCode = 0; //default affliate code
+        }
+
         uint256 _amountFee = _feePercentageCalculator(_amount, _affiliateCode);
         if (_amountFee > 0) {
             _safeTransferTokenTo(_token, payable(feeTo), _amountFee);
