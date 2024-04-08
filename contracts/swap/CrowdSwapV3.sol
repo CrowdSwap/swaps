@@ -131,6 +131,10 @@ contract CrowdSwapV3 is
             _swapParams.fromToken != _swapParams.toToken,
             "CrowdSwapV3: fromToken should not be equal with toToken"
         );
+        require(
+            _swapParams.receiverAddress != address(0),
+            "CrowdSwapV3: receiverAddress is 0"
+        );
 
         ERC20Upgradeable _fromToken = ERC20Upgradeable(_swapParams.fromToken);
         ERC20Upgradeable _toToken = ERC20Upgradeable(_swapParams.toToken);
@@ -209,6 +213,10 @@ contract CrowdSwapV3 is
         require(
             _crossDexParams.swapList.length > 0,
             "CrowdSwapV3: Swap List is empty"
+        );
+        require(
+            _crossDexParams.receiverAddress != address(0),
+            "CrowdSwapV3: receiverAddress is 0"
         );
 
         ERC20Upgradeable fromToken = ERC20Upgradeable(
