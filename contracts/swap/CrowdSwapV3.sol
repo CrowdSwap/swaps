@@ -61,6 +61,8 @@ contract CrowdSwapV3 is
 
     mapping(uint256 => address) public dexchanges;
 
+    uint256 public constant MIN_FEE = 1e16; //0.01%
+    uint256 public constant MAX_FEE = 1e20; //100%
     mapping(uint32 => uint256) private _affiliateFeePercentage;
     mapping(uint32 => bool) private _isAffiliateCodeDefined;
     address public feeTo;
@@ -111,7 +113,7 @@ contract CrowdSwapV3 is
         PausableUpgradeable.__Pausable_init();
         setFeeTo(_feeTo);
         addDexchangesList(_dexAddresses);
-        _affiliateFeePercentage[0] = uint256(_defaultFeePercentage);
+        setAffiliateFeePercentage(0, _defaultFeePercentage, true);
     }
 
     function pause() external onlyOwner {
@@ -331,6 +333,12 @@ contract CrowdSwapV3 is
         uint256 _feePercentage,
         bool _affiliateCodeDefined
     ) external onlyOwner whenPaused {
+        // 1e18 is 1%
+        require(
+            MIN_FEE <= _feePercentage && _feePercentage <= MAX_FEE,
+            "CrowdSwapV3: feePercentage is not in the range"
+        );
+
         emit setAffiliateFeePercent(
             _affiliateCode,
             _affiliateFeePercentage[_affiliateCode],
