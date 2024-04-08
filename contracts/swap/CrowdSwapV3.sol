@@ -96,6 +96,8 @@ contract CrowdSwapV3 is
         uint256 amountOut
     );
 
+    receive() external payable {}
+
     fallback() external {
         revert("CrowdSwapV3: function does  not exist.");
     }
