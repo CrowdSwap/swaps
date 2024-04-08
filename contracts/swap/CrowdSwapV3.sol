@@ -243,7 +243,6 @@ contract CrowdSwapV3 is
 
         // Perform middle swaps
         for (uint256 i = 0; i < _crossDexParams.swapList.length; i++) {
-            fromToken = ERC20Upgradeable(_crossDexParams.swapList[i].fromToken);
             toToken = ERC20Upgradeable(_crossDexParams.swapList[i].toToken);
             dexAddress = _extractDexAddress(
                 _crossDexParams.swapList[i].dexFlag
@@ -277,6 +276,7 @@ contract CrowdSwapV3 is
             );
 
             amountIn = amountOut;
+            fromToken = toToken;
         }
 
         // Deduct fees if applicable for the final output
