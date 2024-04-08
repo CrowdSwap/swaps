@@ -213,7 +213,7 @@ contract CrowdSwapV3 is
      **/
     function crossDexSwap(
         CrossDexParams memory _crossDexParams
-    ) public payable whenNotPaused returns (uint256) {
+    ) external payable whenNotPaused returns (uint256) {
         require(
             _crossDexParams.swapList.length > 0,
             "CrowdSwapV3: Swap List is empty"
