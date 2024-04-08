@@ -25,7 +25,7 @@ contract CrowdSwapV3 is
     }
 
     struct DexAddress {
-        uint256 flag;
+        uint8 flag;
         address adr;
     }
 
@@ -59,7 +59,7 @@ contract CrowdSwapV3 is
         FeeCalcDirection feeCalcDirection;
     }
 
-    mapping(uint256 => address) public dexchanges;
+    mapping(uint8 => address) public dexchanges;
 
     uint256 public constant MIN_FEE = 1e16; //0.01%
     uint256 public constant MAX_FEE = 1e20; //100%
