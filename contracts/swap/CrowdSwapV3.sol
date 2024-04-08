@@ -98,12 +98,10 @@ contract CrowdSwapV3 is
         uint256 amountOut
     );
 
-    receive() external payable {}
-
-    fallback() external {
-        revert("CrowdSwapV3: function does  not exist.");
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
-
     function initialize(
         address payable _feeTo,
         uint256 _defaultFeePercentage,
@@ -116,10 +114,13 @@ contract CrowdSwapV3 is
         _setAffiliateFeePercentage(0, _defaultFeePercentage, true);
     }
 
+    receive() external payable {}
+    fallback() external {
+        revert("CrowdSwapV3: function does  not exist.");
+    }
     function pause() external onlyOwner {
         _pause();
     }
-
     function unpause() external onlyOwner {
         _unpause();
     }
