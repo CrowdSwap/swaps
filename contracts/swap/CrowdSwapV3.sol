@@ -158,7 +158,7 @@ contract CrowdSwapV3 is
         uint256 _amountIn = _swapParams.amountIn;
 
         if (_swapParams.feeCalcDirection == FeeCalcDirection.TokenIn) {
-            (_amountIn, ) = _deductFee(
+            _amountIn = _deductFee(
                 _fromToken,
                 msg.sender,
                 _swapParams.amountIn,
@@ -177,7 +177,7 @@ contract CrowdSwapV3 is
         );
 
         if (_swapParams.feeCalcDirection == FeeCalcDirection.TokenOut) {
-            (_amountOut, ) = _deductFee(
+            _amountOut = _deductFee(
                 _toToken,
                 msg.sender,
                 _amountOut,
@@ -243,7 +243,7 @@ contract CrowdSwapV3 is
 
         // Deduct fees if applicable from the initial input
         if (_crossDexParams.feeCalcDirection == FeeCalcDirection.TokenIn) {
-            (amountIn, ) = _deductFee(
+            amountIn = _deductFee(
                 fromToken,
                 msg.sender,
                 amountIn,
@@ -291,7 +291,7 @@ contract CrowdSwapV3 is
 
         // Deduct fees if applicable for the final output
         if (_crossDexParams.feeCalcDirection == FeeCalcDirection.TokenOut) {
-            (amountOut, ) = _deductFee(
+            amountOut = _deductFee(
                 toToken,
                 msg.sender,
                 amountOut,
@@ -444,7 +444,7 @@ contract CrowdSwapV3 is
         address _onBehalfOfAddress,
         uint256 _amount,
         uint32 _affiliateCode
-    ) private returns (uint256, uint256) {
+    ) private returns (uint256) {
         if (!_isAffiliateCodeDefined[_affiliateCode]) {
             _affiliateCode = 0; //default affliate code
         }
@@ -462,7 +462,7 @@ contract CrowdSwapV3 is
             );
         }
         uint256 _netAmount = _amount - _amountFee;
-        return (_netAmount, _amountFee);
+        return _netAmount;
     }
 
     function _swap(
