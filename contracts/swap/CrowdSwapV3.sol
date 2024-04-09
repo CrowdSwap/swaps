@@ -464,15 +464,15 @@ contract CrowdSwapV3 is
         );
         if (_amountFee > 0) {
             _safeTransferTokenTo(_token, payable(feeTo), _amountFee);
-
-            emit FeeDeducted(
-                _onBehalfOfAddress,
-                address(_token),
-                _affiliateCode,
-                _amount,
-                _amountFee
-            );
         }
+     
+        emit FeeDeducted(
+            _onBehalfOfAddress,
+            address(_token),
+            _affiliateCode,
+            _amount,
+            _amountFee
+        );
         uint256 _netAmount = _amount - _amountFee;
         return _netAmount;
     }
