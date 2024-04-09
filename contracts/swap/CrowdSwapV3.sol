@@ -23,6 +23,10 @@ contract CrowdSwapV3 is
         TokenIn,
         TokenOut
     }
+    struct AffiliateFeeInfo {
+        uint256 feePercentage;
+        bool isDefined;
+    }
 
     struct DexAddress {
         uint8 flag;
@@ -63,8 +67,7 @@ contract CrowdSwapV3 is
 
     uint256 public constant MIN_FEE = 1e16; //0.01%
     uint256 public constant MAX_FEE = 1e20; //100%
-    mapping(uint32 => uint256) private _affiliateFeePercentage;
-    mapping(uint32 => bool) private _isAffiliateCodeDefined;
+    mapping(uint32 => AffiliateFeeInfo) private _affiliateFees;
     address public feeTo;
 
     event SetFeeTo(address oldFeeToAddress, address newFeeToAddress);
@@ -330,15 +333,11 @@ contract CrowdSwapV3 is
     }
 
     function setAffiliateFeePercentage(
-        uint32 _affiliateCode,
+        uint32 _code,
         uint256 _feePercentage,
-        bool _affiliateCodeDefined
+        bool _isDefined
     ) public onlyOwner whenPaused {
-        _setAffiliateFeePercentage(
-            _affiliateCode,
-            _feePercentage,
-            _affiliateCodeDefined
-        );
+        _setAffiliateFeePercentage(_code, _feePercentage, _isDefined);
     }
 
     function addDexchangesList(
@@ -413,9 +412,9 @@ contract CrowdSwapV3 is
     }
 
     function _setAffiliateFeePercentage(
-        uint32 _affiliateCode,
+        uint32 _code,
         uint256 _feePercentage,
-        bool _affiliateCodeDefined
+        bool _isDefined
     ) private {
         // 1e18 is 1%
         require(
@@ -424,19 +423,21 @@ contract CrowdSwapV3 is
         );
 
         emit setAffiliateFeePercent(
-            _affiliateCode,
-            _affiliateFeePercentage[_affiliateCode],
+            _code,
+            _affiliateFees[_code].feePercentage,
             _feePercentage
         );
-        _affiliateFeePercentage[_affiliateCode] = _feePercentage;
-        _isAffiliateCodeDefined[_affiliateCode] = _affiliateCodeDefined;
+        _affiliateFees[_code] = AffiliateFeeInfo({
+            feePercentage: _feePercentage,
+            isDefined: _isDefined
+        });
     }
 
-    function _feePercentageCalculator(
+    function _calculateAmountFee(
         uint256 _calculationAmount,
         uint32 _affiliateCode
     ) private view returns (uint256) {
-        uint256 _percentage = _affiliateFeePercentage[_affiliateCode];
+        uint256 _percentage = _affiliateFees[_affiliateCode].feePercentage;
         return (_percentage * _calculationAmount) / (1e20);
     }
 
@@ -446,11 +447,17 @@ contract CrowdSwapV3 is
         uint256 _amount,
         uint32 _affiliateCode
     ) private returns (uint256) {
-        if (!_isAffiliateCodeDefined[_affiliateCode]) {
-            _affiliateCode = 0; //default affliate code
-        }
+        //default affliate code is 0
+        uint32 _effectiveAffiliateCode = _affiliateFees[_affiliateCode]
+            .isDefined
+            ? _affiliateCode
+            : 0;
 
-        uint256 _amountFee = _feePercentageCalculator(_amount, _affiliateCode);
+        //default affliate code is 0
+        uint256 _amountFee = _calculateAmountFee(
+            _amount,
+            _effectiveAffiliateCode
+        );
         if (_amountFee > 0) {
             _safeTransferTokenTo(_token, payable(feeTo), _amountFee);
 
