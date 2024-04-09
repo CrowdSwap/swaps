@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.10;
+pragma solidity 0.8.10;
 import "../libraries/UniERC20Upgradeable.sol";
 import "../helpers/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -23,9 +23,13 @@ contract CrowdSwapV3 is
         TokenIn,
         TokenOut
     }
+    struct AffiliateFeeInfo {
+        uint256 feePercentage;
+        bool isDefined;
+    }
 
     struct DexAddress {
-        uint256 flag;
+        uint8 flag;
         address adr;
     }
 
@@ -35,7 +39,6 @@ contract CrowdSwapV3 is
         address toToken;
         bytes4 selector;
         bytes[] params;
-        bool isReplace;
         uint8 index;
     }
     struct CrossDexParams {
@@ -59,16 +62,20 @@ contract CrowdSwapV3 is
         FeeCalcDirection feeCalcDirection;
     }
 
-    mapping(uint256 => address) public dexchanges;
+    mapping(uint8 => address) public dexchanges;
 
-    mapping(uint32 => uint256) public affiliateFeePercentage;
+    uint256 public constant MIN_FEE = 1e16; //0.01%
+    uint256 public constant MAX_FEE = 1e20; //100%
+    mapping(uint32 => AffiliateFeeInfo) private _affiliateFees;
     address public feeTo;
 
     event SetFeeTo(address oldFeeToAddress, address newFeeToAddress);
     event setAffiliateFeePercent(
         uint32 indexed affiliateCode,
         uint256 oldFeePercentage,
-        uint256 newFeePercentage
+        bool oldIsDefined,
+        uint256 newFeePercentage,
+        bool newIsDefined
     );
     event FeeDeducted(
         address indexed user,
@@ -95,12 +102,10 @@ contract CrowdSwapV3 is
         uint256 amountOut
     );
 
-    receive() external payable {}
-
-    fallback() external {
-        revert("CrowdSwapV3: function does  not exist.");
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
-
     function initialize(
         address payable _feeTo,
         uint256 _defaultFeePercentage,
@@ -110,13 +115,16 @@ contract CrowdSwapV3 is
         PausableUpgradeable.__Pausable_init();
         setFeeTo(_feeTo);
         addDexchangesList(_dexAddresses);
-        affiliateFeePercentage[0] = uint256(_defaultFeePercentage);
+        _setAffiliateFeePercentage(0, _defaultFeePercentage, true);
     }
 
+    receive() external payable {}
+    fallback() external {
+        revert("CrowdSwapV3: function does  not exist.");
+    }
     function pause() external onlyOwner {
         _pause();
     }
-
     function unpause() external onlyOwner {
         _unpause();
     }
@@ -131,6 +139,10 @@ contract CrowdSwapV3 is
         require(
             _swapParams.fromToken != _swapParams.toToken,
             "CrowdSwapV3: fromToken should not be equal with toToken"
+        );
+        require(
+            _swapParams.receiverAddress != address(0),
+            "CrowdSwapV3: receiverAddress is 0"
         );
 
         ERC20Upgradeable _fromToken = ERC20Upgradeable(_swapParams.fromToken);
@@ -151,7 +163,7 @@ contract CrowdSwapV3 is
         uint256 _amountIn = _swapParams.amountIn;
 
         if (_swapParams.feeCalcDirection == FeeCalcDirection.TokenIn) {
-            (_amountIn, ) = _deductFee(
+            _amountIn = _deductFee(
                 _fromToken,
                 msg.sender,
                 _swapParams.amountIn,
@@ -170,7 +182,7 @@ contract CrowdSwapV3 is
         );
 
         if (_swapParams.feeCalcDirection == FeeCalcDirection.TokenOut) {
-            (_amountOut, ) = _deductFee(
+            _amountOut = _deductFee(
                 _toToken,
                 msg.sender,
                 _amountOut,
@@ -206,10 +218,14 @@ contract CrowdSwapV3 is
      **/
     function crossDexSwap(
         CrossDexParams memory _crossDexParams
-    ) public payable whenNotPaused returns (uint256) {
+    ) external payable whenNotPaused returns (uint256) {
         require(
             _crossDexParams.swapList.length > 0,
             "CrowdSwapV3: Swap List is empty"
+        );
+        require(
+            _crossDexParams.receiverAddress != address(0),
+            "CrowdSwapV3: receiverAddress is 0"
         );
 
         ERC20Upgradeable fromToken = ERC20Upgradeable(
@@ -232,7 +248,7 @@ contract CrowdSwapV3 is
 
         // Deduct fees if applicable from the initial input
         if (_crossDexParams.feeCalcDirection == FeeCalcDirection.TokenIn) {
-            (amountIn, ) = _deductFee(
+            amountIn = _deductFee(
                 fromToken,
                 msg.sender,
                 amountIn,
@@ -242,18 +258,15 @@ contract CrowdSwapV3 is
 
         // Perform middle swaps
         for (uint256 i = 0; i < _crossDexParams.swapList.length; i++) {
-            fromToken = ERC20Upgradeable(_crossDexParams.swapList[i].fromToken);
             toToken = ERC20Upgradeable(_crossDexParams.swapList[i].toToken);
             dexAddress = _extractDexAddress(
                 _crossDexParams.swapList[i].dexFlag
             );
 
-            // Handle token replacement
-            if (_crossDexParams.swapList[i].isReplace) {
-                _crossDexParams.swapList[i].params[
-                    _crossDexParams.swapList[i].index
-                ] = abi.encode(amountIn);
-            }
+            // amount replacement
+            _crossDexParams.swapList[i].params[
+                _crossDexParams.swapList[i].index
+            ] = abi.encode(amountIn);
 
             // Perform the swap
             bytes memory swapData = _assembleCallData(
@@ -276,11 +289,12 @@ contract CrowdSwapV3 is
             );
 
             amountIn = amountOut;
+            fromToken = toToken;
         }
 
         // Deduct fees if applicable for the final output
         if (_crossDexParams.feeCalcDirection == FeeCalcDirection.TokenOut) {
-            (amountOut, ) = _deductFee(
+            amountOut = _deductFee(
                 toToken,
                 msg.sender,
                 amountOut,
@@ -318,15 +332,11 @@ contract CrowdSwapV3 is
     }
 
     function setAffiliateFeePercentage(
-        uint32 _affiliateCode,
-        uint256 _feePercentage
-    ) external onlyOwner {
-        emit setAffiliateFeePercent(
-            _affiliateCode,
-            affiliateFeePercentage[_affiliateCode],
-            _feePercentage
-        );
-        affiliateFeePercentage[_affiliateCode] = uint256(_feePercentage);
+        uint32 _code,
+        uint256 _feePercentage,
+        bool _isDefined
+    ) public onlyOwner whenPaused {
+        _setAffiliateFeePercentage(_code, _feePercentage, _isDefined);
     }
 
     function addDexchangesList(
@@ -400,11 +410,38 @@ contract CrowdSwapV3 is
         );
     }
 
-    function _feePercentageCalculator(
+    function _setAffiliateFeePercentage(
+        uint32 _code,
+        uint256 _feePercentage,
+        bool _isDefined
+    ) private {
+        // 1e18 is 1%
+        require(
+            MIN_FEE <= _feePercentage && _feePercentage <= MAX_FEE,
+            "CrowdSwapV3: feePercentage is not in the range"
+        );
+
+        AffiliateFeeInfo memory _oldAffiliateFee = _affiliateFees[_code]; //gas saving
+
+        emit setAffiliateFeePercent(
+            _code,
+            _oldAffiliateFee.feePercentage,
+            _oldAffiliateFee.isDefined,
+            _feePercentage,
+            _isDefined
+        );
+
+        _affiliateFees[_code] = AffiliateFeeInfo({
+            feePercentage: _feePercentage,
+            isDefined: _isDefined
+        });
+    }
+
+    function _calculateAmountFee(
         uint256 _calculationAmount,
         uint32 _affiliateCode
     ) private view returns (uint256) {
-        uint256 _percentage = affiliateFeePercentage[_affiliateCode];
+        uint256 _percentage = _affiliateFees[_affiliateCode].feePercentage;
         return (_percentage * _calculationAmount) / (1e20);
     }
 
@@ -413,21 +450,32 @@ contract CrowdSwapV3 is
         address _onBehalfOfAddress,
         uint256 _amount,
         uint32 _affiliateCode
-    ) private returns (uint256, uint256) {
-        uint256 _amountFee = _feePercentageCalculator(_amount, _affiliateCode);
+    ) private returns (uint256) {
+        //default affliate code is 0
+        uint32 _effectiveAffiliateCode = _affiliateFees[_affiliateCode]
+            .isDefined
+            ? _affiliateCode
+            : 0;
+
+        //default affliate code is 0
+        uint256 _amountFee = _calculateAmountFee(
+            _amount,
+            _effectiveAffiliateCode
+        );
         if (_amountFee > 0) {
             _safeTransferTokenTo(_token, payable(feeTo), _amountFee);
-
-            emit FeeDeducted(
-                _onBehalfOfAddress,
-                address(_token),
-                _affiliateCode,
-                _amount,
-                _amountFee
-            );
         }
+     
+        emit FeeDeducted(
+            _onBehalfOfAddress,
+            address(_token),
+            _affiliateCode,
+            _amount,
+            _amountFee
+        );
+        
         uint256 _netAmount = _amount - _amountFee;
-        return (_netAmount, _amountFee);
+        return _netAmount;
     }
 
     function _swap(

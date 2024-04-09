@@ -105,13 +105,7 @@ export class UniswapV2Mock {
       params.push(ethers.utils.arrayify("0x" + tx.data.substring(i, i + 64)));
     }
 
-    let index = this.getPositionOfAmountIn();
-    let isReplace = true;
-
-    if (index < 0) {
-      index = 0;
-      isReplace = false;
-    }
+    const index = Math.max(this.getPositionOfAmountIn(), 0);
 
     return {
       dexFlag: this.dexFlag,
@@ -120,7 +114,6 @@ export class UniswapV2Mock {
       selector,
       index,
       params,
-      isReplace,
     };
   }
 

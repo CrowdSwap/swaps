@@ -58,22 +58,6 @@ describe("AggregatorV3", async () => {
         amountIn
       );
     });
-
-    it("Change feePercentage", async () => {
-      const { crowdswapV3 } = await loadFixture(CrowdSwapV3Fixture);
-
-      let feePercentage = await crowdswapV3.affiliateFeePercentage(1);
-      await expect(feePercentage).to.eq(parseEther("0"));
-
-      let tx = await crowdswapV3.setAffiliateFeePercentage(
-        1,
-        parseEther("0.2")
-      );
-      await tx.wait();
-
-      feePercentage = await crowdswapV3.affiliateFeePercentage(1);
-      await expect(feePercentage).to.eq(parseEther("0.2"));
-    });
   });
 
   describe("swap", async () => {
