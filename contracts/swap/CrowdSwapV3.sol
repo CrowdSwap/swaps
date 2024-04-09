@@ -74,7 +74,9 @@ contract CrowdSwapV3 is
     event setAffiliateFeePercent(
         uint32 indexed affiliateCode,
         uint256 oldFeePercentage,
-        uint256 newFeePercentage
+        bool oldIsDefined,
+        uint256 newFeePercentage,
+        bool newIsDefined
     );
     event FeeDeducted(
         address indexed user,
@@ -422,11 +424,16 @@ contract CrowdSwapV3 is
             "CrowdSwapV3: feePercentage is not in the range"
         );
 
+        AffiliateFeeInfo memory _oldAffiliateFee = _affiliateFees[_code]; //gas saving
+
         emit setAffiliateFeePercent(
             _code,
-            _affiliateFees[_code].feePercentage,
-            _feePercentage
+            _oldAffiliateFee.feePercentage,
+            _oldAffiliateFee.isDefined,
+            _feePercentage,
+            _isDefined
         );
+        
         _affiliateFees[_code] = AffiliateFeeInfo({
             feePercentage: _feePercentage,
             isDefined: _isDefined
