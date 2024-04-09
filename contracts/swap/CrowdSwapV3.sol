@@ -39,7 +39,6 @@ contract CrowdSwapV3 is
         address toToken;
         bytes4 selector;
         bytes[] params;
-        bool isReplace;
         uint8 index;
     }
     struct CrossDexParams {
@@ -264,12 +263,10 @@ contract CrowdSwapV3 is
                 _crossDexParams.swapList[i].dexFlag
             );
 
-            // Handle token replacement
-            if (_crossDexParams.swapList[i].isReplace) {
-                _crossDexParams.swapList[i].params[
-                    _crossDexParams.swapList[i].index
-                ] = abi.encode(amountIn);
-            }
+            // amount replacement
+            _crossDexParams.swapList[i].params[
+                _crossDexParams.swapList[i].index
+            ] = abi.encode(amountIn);
 
             // Perform the swap
             bytes memory swapData = _assembleCallData(
@@ -433,7 +430,7 @@ contract CrowdSwapV3 is
             _feePercentage,
             _isDefined
         );
-        
+
         _affiliateFees[_code] = AffiliateFeeInfo({
             feePercentage: _feePercentage,
             isDefined: _isDefined
