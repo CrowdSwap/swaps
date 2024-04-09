@@ -473,6 +473,7 @@ contract CrowdSwapV3 is
             _amount,
             _amountFee
         );
+        
         uint256 _netAmount = _amount - _amountFee;
         return _netAmount;
     }
