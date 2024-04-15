@@ -23,10 +23,6 @@ contract CrowdSwapV3 is
         TokenIn,
         TokenOut
     }
-    struct AffiliateFeeInfo {
-        uint256 feePercentage;
-        bool isDefined;
-    }
 
     struct DexAddress {
         uint8 flag;
@@ -66,16 +62,14 @@ contract CrowdSwapV3 is
 
     uint256 public constant MIN_FEE = 1e16; //0.01%
     uint256 public constant MAX_FEE = 1e20; //100%
-    mapping(uint32 => AffiliateFeeInfo) private _affiliateFees;
+    mapping(uint32 => uint256) private _affiliateFeePercentage;
     address public feeTo;
 
     event SetFeeTo(address oldFeeToAddress, address newFeeToAddress);
     event setAffiliateFeePercent(
         uint32 indexed affiliateCode,
         uint256 oldFeePercentage,
-        bool oldIsDefined,
-        uint256 newFeePercentage,
-        bool newIsDefined
+        uint256 newFeePercentage
     );
     event FeeDeducted(
         address indexed user,
@@ -421,28 +415,13 @@ contract CrowdSwapV3 is
             "CrowdSwapV3: feePercentage is not in the range"
         );
 
-        AffiliateFeeInfo memory _oldAffiliateFee = _affiliateFees[_code]; //gas saving
-
         emit setAffiliateFeePercent(
             _code,
-            _oldAffiliateFee.feePercentage,
-            _oldAffiliateFee.isDefined,
-            _feePercentage,
-            _isDefined
+            _affiliateFeePercentage[_code],
+            _feePercentage
         );
 
-        _affiliateFees[_code] = AffiliateFeeInfo({
-            feePercentage: _feePercentage,
-            isDefined: _isDefined
-        });
-    }
-
-    function _calculateAmountFee(
-        uint256 _calculationAmount,
-        uint32 _affiliateCode
-    ) private view returns (uint256) {
-        uint256 _percentage = _affiliateFees[_affiliateCode].feePercentage;
-        return (_percentage * _calculationAmount) / (1e20);
+        _affiliateFeePercentage[_code] = _feePercentage;
     }
 
     function _deductFee(
@@ -451,21 +430,18 @@ contract CrowdSwapV3 is
         uint256 _amount,
         uint32 _affiliateCode
     ) private returns (uint256) {
+        uint256 _percentage = _affiliateFeePercentage[_affiliateCode];
         //default affliate code is 0
-        uint32 _effectiveAffiliateCode = _affiliateFees[_affiliateCode]
-            .isDefined
-            ? _affiliateCode
-            : 0;
+        if (_percentage == 0) {
+            _percentage = _affiliateFeePercentage[0];
+        }
 
-        //default affliate code is 0
-        uint256 _amountFee = _calculateAmountFee(
-            _amount,
-            _effectiveAffiliateCode
-        );
+        uint256 _amountFee = (_amount * _percentage) / 1e20;
+
         if (_amountFee > 0) {
             _safeTransferTokenTo(_token, payable(feeTo), _amountFee);
         }
-     
+
         emit FeeDeducted(
             _onBehalfOfAddress,
             address(_token),
@@ -473,7 +449,7 @@ contract CrowdSwapV3 is
             _amount,
             _amountFee
         );
-        
+
         uint256 _netAmount = _amount - _amountFee;
         return _netAmount;
     }
