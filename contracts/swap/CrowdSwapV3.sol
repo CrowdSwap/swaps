@@ -109,7 +109,7 @@ contract CrowdSwapV3 is
         PausableUpgradeable.__Pausable_init();
         setFeeTo(_feeTo);
         addDexchangesList(_dexAddresses);
-        _setAffiliateFeePercentage(0, _defaultFeePercentage, true);
+        _setAffiliateFeePercentage(0, _defaultFeePercentage);
     }
 
     receive() external payable {}
@@ -325,12 +325,17 @@ contract CrowdSwapV3 is
         return "V3.0";
     }
 
+    function getAffiliateFeePercentage(
+        uint32 _code
+    ) external view returns (uint256) {
+        return _affiliateFeePercentage[_code];
+    }
+
     function setAffiliateFeePercentage(
         uint32 _code,
-        uint256 _feePercentage,
-        bool _isDefined
-    ) public onlyOwner whenPaused {
-        _setAffiliateFeePercentage(_code, _feePercentage, _isDefined);
+        uint256 _feePercentage
+    ) external onlyOwner whenPaused {
+        _setAffiliateFeePercentage(_code, _feePercentage);
     }
 
     function addDexchangesList(
@@ -406,8 +411,7 @@ contract CrowdSwapV3 is
 
     function _setAffiliateFeePercentage(
         uint32 _code,
-        uint256 _feePercentage,
-        bool _isDefined
+        uint256 _feePercentage
     ) private {
         // 1e18 is 1%
         require(
